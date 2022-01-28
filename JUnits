@@ -1,0 +1,90 @@
+Source: https://www.chrismacpherson.net/dev/testing-exceptions-in-java-with-assertj/
+
+July 29, 2019 2 minute read
+
+Quite often at work I’m banging on about code being easy to read. It’s a well understood notion that it’s harder to read code than to write it so I’m always keen to keep things as legible as possible, especially in my tests which I hope provide backup documentation.
+
+Exceptions haven’t always been the easiest things to test properly in Java, and by test I am including the exception message and structure as well as the type, but I recently started using a new feature of AssertJ which I think helps keep the flow of the tests smooth.
+
+First of all though, here is how I progressed in this area before now…
+JUnit ‘expected’ Annotation ParameterPermalink
+
+At first, all that I knew about was the ‘expected’ parameter of JUnit’s @Test annotation. This allows you to specify the exception class you expect will be thrown and if that indeed occurs during test execution then the test will pass.
+
+@Test(expected = MyException.class)
+public void throwsAnExceptionWhenTryingToCalculateWithNull() throws MyException {
+    testSubject.calculate(null)
+}
+
+The above is actually quite clear to read to be honest, but it doesn’t allow you to check any of the details of the exception itself, only that it was thrown.
+JUnit ExpectedException RulePermalink
+
+My code next migrated to a better JUnit feature which allows you to make some assertions against a captured exception. Being able to check the message and other properties of the object was a massive gain, you just have to add a small bit of plumbing with the @Rule.
+
+@Rule
+public ExpectedException thrown = ExpectedException.none();
+
+@Test
+public void throwsAnExceptionWhenTryingToCalculateWithNull() {
+
+    thrown.expect(MyException.class);
+    thrown.expectMessage(startsWith("Calculating for null makes no sense here"));
+    thrown.expect(hasProperty("response", hasProperty("status", is(400))));
+
+    testSubject.calculate(null)
+}
+
+Now that’s what I’m talking about. I can test it all and it’s fairly clear to read. It does however gripe me that the ‘Given, When, Then’ pattern I try to follow is broken, now being ‘Given, Then, When’. Personally I find that doesn’t flow in a natural way and thus is harder to read. Maybe a better solution can be sought?
+AssertJ Exception AssertionPermalink
+
+Of course it can…
+
+AssertJ added a new exception assertion that allows us to test the exception and its message and properties as before but also in a BDD style ‘Given, When, Then’ pattern. We can also get rid of the plumbing too which is nice, I find it very distracting to have to scroll up to the top of the class to reference class members (or even worse for private members being used to prevent ‘magic-numbers’).
+
+@Test
+public void throwsAnExceptionWhenTryingToCalculateWithNull() {
+
+    // when
+    Throwable thrown = catchThrowable(() -> testSubject.calculate(null));
+
+    // then
+    assertThat(thrown)
+        .isInstanceOf(MyException.class)
+        .hasMessageContaining("Calculating for null makes no sense here")
+        .hasFieldOrPropertyWithValue("status", "400")
+        .hasCause(InvalidArgumentException.class);
+}
+
+So there we have it, fully testable exceptions but also the easiest to read in a natural flow (in my opinion).
+
+Tags: java tdd testing
+
+Categories: dev
+
+Updated: July 29, 2019
+Share on
+Twitter Facebook LinkedIn
+Previous
+Next
+Leave a comment
+You may also enjoy
+Syncing studios remotely with RTPMIDI and Jamulus
+
+December 3, 2020 5 minute read
+
+Want to jam with your friends remotely but still in sync! What was once a distant dream now seems to be fairly easy thanks to some great free tools.
+Great Space Science Videos
+
+November 22, 2020 1 minute read
+
+A list of my favourite videos on science, the planets, stars and all things out there
+Extract audio or video from MKV files with mkvtoolnix
+
+April 19, 2020 2 minute read
+
+Need to extract the audio or video from one of you MKV files? This is how you do it
+Easy TLS React Development Environment
+
+February 17, 2020 4 minute read
+
+Configure TLS for your CRA project and node Express backend services in no time at all.
